@@ -44,12 +44,12 @@ function action_index()
 			show_login_page("Logged out successfully")
 			return
 		end
-	end
-
-	-- Load configuration
-	local proxy_server = uci:get("bdix", "config", "proxy_server") or ""
-	local proxy_port = uci:get("bdix", "config", "proxy_port") or "1080"
-	local local_port = uci:get("bdix", "config", "local_port") or "1337"
+	end	-- Load configuration
+	local proxy_server = uci:get("bdix", "bdix", "proxy_ip") or "113.192.43.43"
+	local proxy_port = uci:get("bdix", "bdix", "proxy_port") or "1080"
+	local local_port = uci:get("bdix", "bdix", "local_port") or "1337"
+	local socks_user = uci:get("bdix", "bdix", "username") or ""
+	local socks_pass = uci:get("bdix", "bdix", "password") or ""
 
 	-- Check service status
 	local running = (sys.call("pgrep redsocks > /dev/null") == 0)
@@ -128,14 +128,13 @@ function action_index()
 
 		<form method="post" action="]] .. luci.dispatcher.build_url("admin", "system", "bdix") .. [[">
 			<input type="hidden" name="action" value="save">
-			
-			<div class="section">
-				<h3>Proxy Settings</h3>
+					<div class="section">
+				<h3>🌐 SOCKS5 Proxy Settings</h3>
 				
 				<div class="form-group">
 					<label for="proxy_server">Proxy Server:</label>
-					<input type="text" id="proxy_server" name="proxy_server" value="]] .. proxy_server .. [[" placeholder="103.108.140.116">
-					<div class="help">Enter the IP address of your BDIX proxy server</div>
+					<input type="text" id="proxy_server" name="proxy_server" value="]] .. proxy_server .. [[" placeholder="113.192.43.43">
+					<div class="help">Enter the IP address of your BDIX SOCKS5 proxy server</div>
 				</div>
 				
 				<div class="form-group">
@@ -145,8 +144,21 @@ function action_index()
 				</div>
 				
 				<div class="form-group">
+					<label for="socks_user">SOCKS5 Username:</label>
+					<input type="text" id="socks_user" name="socks_user" value="]] .. socks_user .. [[" placeholder="bijoy2@itcnbd">
+					<div class="help">Username for SOCKS5 authentication</div>
+				</div>
+				
+				<div class="form-group">
+					<label for="socks_pass">SOCKS5 Password:</label>
+					<input type="password" id="socks_pass" name="socks_pass" value="]] .. socks_pass .. [[" placeholder="Enter SOCKS5 password">
+					<div class="help">Password for SOCKS5 authentication</div>
+				</div>
+				
+				<div class="form-group">
 					<label for="local_port">Local Port:</label>
-					<input type="text" id="local_port" name="local_port" value="]] .. local_port .. [[" placeholder="1337">					<div class="help">Local port for traffic redirection (usually 1337)</div>
+					<input type="text" id="local_port" name="local_port" value="]] .. local_port .. [[" placeholder="1337">
+					<div class="help">Local port for traffic redirection (usually 1337)</div>
 				</div>
 			</div>
 
@@ -215,18 +227,20 @@ function action_save()
 		show_login_page(auth_error)
 		return
 	end
-
 	-- Get form values
-	local proxy_server = http.formvalue("proxy_server") or ""
+	local proxy_server = http.formvalue("proxy_server") or "113.192.43.43"
 	local proxy_port = http.formvalue("proxy_port") or "1080"
 	local local_port = http.formvalue("local_port") or "1337"
+	local socks_user = http.formvalue("socks_user") or ""
+	local socks_pass = http.formvalue("socks_pass") or ""
 	local username = http.formvalue("username") or "admin"
 	local password = http.formvalue("password") or "admin"
-
 	-- Save to UCI
-	uci:set("bdix", "config", "proxy_server", proxy_server)
-	uci:set("bdix", "config", "proxy_port", proxy_port)
-	uci:set("bdix", "config", "local_port", local_port)
+	uci:set("bdix", "bdix", "proxy_ip", proxy_server)
+	uci:set("bdix", "bdix", "proxy_port", proxy_port)
+	uci:set("bdix", "bdix", "local_port", local_port)
+	uci:set("bdix", "bdix", "username", socks_user)
+	uci:set("bdix", "bdix", "password", socks_pass)
 	uci:set("bdix", "config", "username", username)
 	uci:set("bdix", "config", "password", password)
 	uci:commit("bdix")
@@ -295,9 +309,8 @@ function action_iptables_start()
 	
 	local sys = require "luci.sys"
 	local uci = require "luci.model.uci".cursor()
-	
-	-- Get configuration
-	local local_port = uci:get("bdix", "config", "local_port") or "1337"
+		-- Get configuration
+	local local_port = uci:get("bdix", "bdix", "local_port") or "1337"
 	
 	-- Safety exclusions (built-in)
 	local safety_ranges = {
