@@ -42,6 +42,7 @@ echo "🔧 Setting up configuration..."
 uci -q get bdix.config >/dev/null || uci set bdix.config=section
 uci -q get bdix.config.custom_ips >/dev/null || uci set bdix.config.custom_ips=""
 uci -q get bdix.config.custom_domains >/dev/null || uci set bdix.config.custom_domains=""
+uci -q get bdix.config.safety_ips >/dev/null || uci set bdix.config.safety_ips="192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
 uci commit bdix
 
 # Clear cache and restart

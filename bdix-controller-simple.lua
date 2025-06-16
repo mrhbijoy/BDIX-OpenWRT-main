@@ -17,11 +17,13 @@ function index()
 	entry({"admin", "system", "bdix", "restart"}, call("action_restart"))
 	entry({"admin", "system", "bdix", "save"}, call("action_save"))
 	entry({"admin", "system", "bdix", "iptables_start"}, call("action_iptables_start"))
-	entry({"admin", "system", "bdix", "iptables_stop"}, call("action_iptables_stop"))
-	entry({"admin", "system", "bdix", "add_ip"}, call("action_add_ip"))
+	entry({"admin", "system", "bdix", "iptables_stop"}, call("action_iptables_stop"))	entry({"admin", "system", "bdix", "add_ip"}, call("action_add_ip"))
 	entry({"admin", "system", "bdix", "remove_ip"}, call("action_remove_ip"))
 	entry({"admin", "system", "bdix", "add_domain"}, call("action_add_domain"))
 	entry({"admin", "system", "bdix", "remove_domain"}, call("action_remove_domain"))
+	entry({"admin", "system", "bdix", "add_safety_ip"}, call("action_add_safety_ip"))
+	entry({"admin", "system", "bdix", "remove_safety_ip"}, call("action_remove_safety_ip"))
+	entry({"admin", "system", "bdix", "edit_safety_ip"}, call("action_edit_safety_ip"))
 end
 
 function action_index()
@@ -33,14 +35,15 @@ function action_index()
 	local proxy_server = uci:get("bdix", "config", "proxy_server") or ""
 	local proxy_port = uci:get("bdix", "config", "proxy_port") or "1080"
 	local local_port = uci:get("bdix", "config", "local_port") or "1337"
-	
-	-- Load custom exclusions
+		-- Load custom exclusions
 	local custom_ips = uci:get("bdix", "config", "custom_ips") or ""
 	local custom_domains = uci:get("bdix", "config", "custom_domains") or ""
+	local safety_ips = uci:get("bdix", "config", "safety_ips") or "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
 	
 	-- Convert to tables for display
 	local ip_list = {}
 	local domain_list = {}
+	local safety_list = {}
 	
 	if custom_ips ~= "" then
 		for ip in string.gmatch(custom_ips, "([^,]+)") do
@@ -51,6 +54,12 @@ function action_index()
 	if custom_domains ~= "" then
 		for domain in string.gmatch(custom_domains, "([^,]+)") do
 			table.insert(domain_list, string.gsub(domain, "^%s*(.-)%s*$", "%1"))
+		end
+	end
+	
+	if safety_ips ~= "" then
+		for ip in string.gmatch(safety_ips, "([^,]+)") do
+			table.insert(safety_list, string.gsub(ip, "^%s*(.-)%s*$", "%1"))
 		end
 	end
 		-- Check service status
@@ -97,10 +106,15 @@ function action_index()
 		.exclusion-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 5px 0; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; }
 		.exclusion-item .remove-btn { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; }
 		.exclusion-item .remove-btn:hover { background: #c82333; }
-		.add-exclusion { display: flex; gap: 10px; margin-top: 10px; }
-		.add-exclusion input { flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 3px; }
+		.add-exclusion { display: flex; gap: 10px; margin-top: 10px; }		.add-exclusion input { flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 3px; }
 		.add-exclusion button { padding: 6px 12px; border: none; background: #28a745; color: white; border-radius: 3px; cursor: pointer; }
 		.add-exclusion button:hover { background: #218838; }
+		.safety-warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 10px; border-radius: 4px; margin: 10px 0; }
+		.safety-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 5px 0; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; }
+		.safety-item .edit-btn { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; margin-right: 5px; }
+		.safety-item .remove-btn { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; }
+		.safety-item .edit-btn:hover { background: #e0a800; }
+		.safety-item .remove-btn:hover { background: #c82333; }
 	</style>
 </head>
 <body>
@@ -177,17 +191,28 @@ function action_index()
 				
 				<button type="submit" class="button">Save Configuration</button>			</form>
 		</div>
-				<div class="section">
+		<div class="section">
 			<h3>IP/Domain Exclusions</h3>
 			<p>These IPs and domains will <strong>NOT</strong> go through the BDIX proxy (direct connection):</p>
 			
-			<div class="iptables-rules">
-				<strong>Built-in Safety Exclusions (Cannot be removed):</strong>
-				<pre>192.168.0.0/16 - Local networks (keeps web UI accessible)
-172.16.0.0/12 - Private networks
-10.0.0.0/8 - Private networks
-127.0.0.0/8 - Localhost
-169.254.0.0/16 - Link-local addresses</pre>
+			<h4>Safety Network Exclusions (Editable with Caution):</h4>
+			<div class="safety-warning">
+				<strong>⚠️ WARNING:</strong> Removing safety exclusions can lock you out of the router's web interface. Only modify if you understand the risks!
+			</div>
+			<div id="safety-ips">
+				]] .. (function()
+					local html = ""
+					for i, ip in ipairs(safety_list) do
+						local is_router_range = (string.find(ip, "192.168") == 1)
+						local warning = is_router_range and " (ROUTER ACCESS - BE CAREFUL!)" or ""
+						html = html .. '<div class="safety-item"><span>' .. ip .. warning .. '</span><div><button class="edit-btn" onclick="editSafetyIP(\'' .. ip .. '\')">Edit</button><button class="remove-btn" onclick="removeSafetyIP(\'' .. ip .. '\')">Remove</button></div></div>'
+					end
+					return html
+				end)() .. [[
+			</div>
+			<div class="add-exclusion">
+				<input type="text" id="new-safety-ip" placeholder="Add safety IP range (e.g., 172.16.50.4)" />
+				<button onclick="addSafetyIP()">Add Safety IP</button>
 			</div>
 			
 			<h4>Custom IP Exclusions:</h4>
@@ -225,13 +250,49 @@ function action_index()
 				<input type="text" id="new-domain" placeholder="Enter domain (e.g., facebook.com)" />
 				<button onclick="addDomain()">Add Domain</button>
 			</div>
-			
-			<div class="help">
-				<strong>⚠️ Safety Note:</strong> Built-in local network exclusions cannot be removed to prevent losing access to your router.
+					<div class="help">
+				<strong>💡 Understanding Exclusions:</strong><br>
+				• <strong>Safety IPs:</strong> Network ranges that should usually stay excluded<br>
+				• <strong>Custom IPs:</strong> Specific IPs/ranges you want to exclude<br>
+				• <strong>Domains:</strong> Websites that should bypass the proxy<br>
+				• <strong>Warning:</strong> Removing 192.168.x.x can lock you out!
 			</div>
 		</div>
 		
 		<script>
+		function addSafetyIP() {
+			const input = document.getElementById('new-safety-ip');
+			const ip = input.value.trim();
+			if (ip) {
+				if (confirm('Are you sure you want to add this as a safety exclusion? Safety exclusions affect core network access.')) {
+					window.location.href = '/cgi-bin/luci/admin/system/bdix/add_safety_ip?ip=' + encodeURIComponent(ip);
+				}
+			}
+		}
+		
+		function editSafetyIP(ip) {
+			const newIp = prompt('Edit safety IP range (BE CAREFUL!):', ip);
+			if (newIp && newIp !== ip) {
+				if (confirm('WARNING: Editing safety IPs can lock you out of the router!\\n\\nOld: ' + ip + '\\nNew: ' + newIp + '\\n\\nContinue?')) {
+					window.location.href = '/cgi-bin/luci/admin/system/bdix/edit_safety_ip?old_ip=' + encodeURIComponent(ip) + '&new_ip=' + encodeURIComponent(newIp);
+				}
+			}
+		}
+		
+		function removeSafetyIP(ip) {
+			const isRouterRange = ip.indexOf('192.168') === 0;
+			const warningMsg = isRouterRange ? 
+				'⚠️ DANGER: This IP range likely includes your router access!\\n\\nRemoving "' + ip + '" may lock you out of the web interface!\\n\\nAre you absolutely sure?' :
+				'Remove safety IP exclusion "' + ip + '"?\\n\\nThis may affect network connectivity.';
+			
+			if (confirm(warningMsg)) {
+				if (isRouterRange && !confirm('FINAL WARNING: You may lose web access!\\n\\nLast chance to cancel...')) {
+					return;
+				}
+				window.location.href = '/cgi-bin/luci/admin/system/bdix/remove_safety_ip?ip=' + encodeURIComponent(ip);
+			}
+		}
+		
 		function addIP() {
 			const input = document.getElementById('new-ip');
 			const ip = input.value.trim();
@@ -255,8 +316,11 @@ function action_index()
 		function removeDomain(domain) {
 			window.location.href = '/cgi-bin/luci/admin/system/bdix/remove_domain?domain=' + encodeURIComponent(domain);
 		}
+				// Enter key support
+		document.getElementById('new-safety-ip').addEventListener('keypress', function(e) {
+			if (e.key === 'Enter') addSafetyIP();
+		});
 		
-		// Enter key support
 		document.getElementById('new-ip').addEventListener('keypress', function(e) {
 			if (e.key === 'Enter') addIP();
 		});
@@ -355,18 +419,20 @@ function action_iptables_start()
 	local local_port = uci:get("bdix", "config", "local_port") or "1337"
 	local custom_ips = uci:get("bdix", "config", "custom_ips") or ""
 	local custom_domains = uci:get("bdix", "config", "custom_domains") or ""
+	local safety_ips = uci:get("bdix", "config", "safety_ips") or "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
 	
-	-- Create BDIX chain with safety rules (based on your init script)
+	-- Create BDIX chain with safety rules
 	sys.call("iptables -t nat -N BDIX 2>/dev/null")
 	
-	-- Add safety exclusions for local networks and management
-	sys.call("iptables -t nat -A BDIX -d 192.168.0.0/16 -j RETURN")  -- Local networks
-	sys.call("iptables -t nat -A BDIX -d 172.16.0.0/12 -j RETURN")   -- Private networks
-	sys.call("iptables -t nat -A BDIX -d 10.0.0.0/8 -j RETURN")      -- Private networks
-	sys.call("iptables -t nat -A BDIX -d 127.0.0.0/8 -j RETURN")     -- Localhost
-	sys.call("iptables -t nat -A BDIX -d 169.254.0.0/16 -j RETURN")  -- Link-local
-	sys.call("iptables -t nat -A BDIX -d 224.0.0.0/4 -j RETURN")     -- Multicast
-	sys.call("iptables -t nat -A BDIX -d 240.0.0.0/4 -j RETURN")     -- Reserved
+	-- Add safety exclusions (configurable but with warnings)
+	if safety_ips ~= "" then
+		for ip in string.gmatch(safety_ips, "([^,]+)") do
+			local clean_ip = string.gsub(ip, "^%s*(.-)%s*$", "%1")
+			if clean_ip ~= "" then
+				sys.call("iptables -t nat -A BDIX -d " .. clean_ip .. " -j RETURN")
+			end
+		end
+	end
 	
 	-- Add custom IP exclusions
 	if custom_ips ~= "" then
@@ -526,6 +592,89 @@ function action_remove_domain()
 		end
 		
 		uci:set("bdix", "config", "custom_domains", table.concat(new_domains, ","))
+		uci:commit("bdix")
+	end
+	
+	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_add_safety_ip()
+	local uci = require "luci.model.uci".cursor()
+	local http = luci.http
+	
+	local new_ip = http.formvalue("ip")
+	if new_ip and new_ip ~= "" then
+		local current_safety = uci:get("bdix", "config", "safety_ips") or "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
+		
+		-- Check if IP already exists
+		local exists = false
+		if current_safety ~= "" then
+			for ip in string.gmatch(current_safety, "([^,]+)") do
+				if string.gsub(ip, "^%s*(.-)%s*$", "%1") == new_ip then
+					exists = true
+					break
+				end
+			end
+		end
+		
+		if not exists then
+			local updated_safety = current_safety == "" and new_ip or current_safety .. "," .. new_ip
+			uci:set("bdix", "config", "safety_ips", updated_safety)
+			uci:commit("bdix")
+		end
+	end
+	
+	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_remove_safety_ip()
+	local uci = require "luci.model.uci".cursor()
+	local http = luci.http
+	
+	local remove_ip = http.formvalue("ip")
+	if remove_ip and remove_ip ~= "" then
+		local current_safety = uci:get("bdix", "config", "safety_ips") or "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
+		local new_safety = {}
+		
+		if current_safety ~= "" then
+			for ip in string.gmatch(current_safety, "([^,]+)") do
+				local clean_ip = string.gsub(ip, "^%s*(.-)%s*$", "%1")
+				if clean_ip ~= remove_ip then
+					table.insert(new_safety, clean_ip)
+				end
+			end
+		end
+		
+		uci:set("bdix", "config", "safety_ips", table.concat(new_safety, ","))
+		uci:commit("bdix")
+	end
+	
+	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_edit_safety_ip()
+	local uci = require "luci.model.uci".cursor()
+	local http = luci.http
+	
+	local old_ip = http.formvalue("old_ip")
+	local new_ip = http.formvalue("new_ip")
+	
+	if old_ip and new_ip and old_ip ~= "" and new_ip ~= "" then
+		local current_safety = uci:get("bdix", "config", "safety_ips") or "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
+		local updated_safety = {}
+		
+		if current_safety ~= "" then
+			for ip in string.gmatch(current_safety, "([^,]+)") do
+				local clean_ip = string.gsub(ip, "^%s*(.-)%s*$", "%1")
+				if clean_ip == old_ip then
+					table.insert(updated_safety, new_ip)
+				else
+					table.insert(updated_safety, clean_ip)
+				end
+			end
+		end
+		
+		uci:set("bdix", "config", "safety_ips", table.concat(updated_safety, ","))
 		uci:commit("bdix")
 	end
 	
