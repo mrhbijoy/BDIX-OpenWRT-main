@@ -56,13 +56,13 @@ function action_index()
 			table.insert(domain_list, string.gsub(domain, "^%s*(.-)%s*$", "%1"))
 		end
 	end
-	
-	if safety_ips ~= "" then
+		if safety_ips ~= "" then
 		for ip in string.gmatch(safety_ips, "([^,]+)") do
 			table.insert(safety_list, string.gsub(ip, "^%s*(.-)%s*$", "%1"))
 		end
 	end
-		-- Check service status
+	
+	-- Check service status
 	local running = (sys.call("pgrep redsocks > /dev/null") == 0)
 	
 	-- Check iptables rules
