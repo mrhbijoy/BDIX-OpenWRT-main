@@ -68,13 +68,19 @@ fi
 rm /tmp/test-redsocks.conf
 
 echo ""
-echo "🔄 Restarting services..."
+echo "🔄 Restarting services and clearing cache..."
+
+# Clear LuCI cache - this is critical for new modules
+rm -rf /tmp/luci-*
+rm -f /tmp/luci-indexcache
 
 # Restart uhttpd with proper Lua support
 /etc/init.d/uhttpd restart
 
-# Clear LuCI cache
-rm -rf /tmp/luci-*
+# Force LuCI to rebuild its module cache
+/etc/init.d/uhttpd stop
+sleep 2
+/etc/init.d/uhttpd start
 
 echo ""
 echo "🔍 Checking installation status..."
@@ -87,12 +93,38 @@ else
     echo "   Your OpenWRT version might need different Lua packages"
 fi
 
-# Check if LuCI controller is accessible
+# Check if LuCI files are properly installed
+echo ""
+echo "📂 Checking LuCI file installation:"
 if [ -f "/usr/lib/lua/luci/controller/bdix.lua" ]; then
-    echo "✅ BDIX controller: Installed"
+    echo "✅ Controller: /usr/lib/lua/luci/controller/bdix.lua"
+    # Verify the controller content
+    if grep -q "module.*bdix" /usr/lib/lua/luci/controller/bdix.lua; then
+        echo "   Controller content looks correct"
+    else
+        echo "   ⚠️  Controller content might be corrupted"
+    fi
 else
-    echo "❌ BDIX controller: Missing"
+    echo "❌ Controller: Missing - need to reinstall web files"
 fi
+
+if [ -f "/usr/lib/lua/luci/model/cbi/bdix.lua" ]; then
+    echo "✅ Model: /usr/lib/lua/luci/model/cbi/bdix.lua"
+else
+    echo "❌ Model: Missing"
+fi
+
+if [ -f "/usr/lib/lua/luci/view/bdix/status.htm" ]; then
+    echo "✅ View: /usr/lib/lua/luci/view/bdix/status.htm"
+else
+    echo "❌ View: Missing"
+fi
+
+# Check file permissions
+echo ""
+echo "🔐 Checking file permissions:"
+ls -la /usr/lib/lua/luci/controller/bdix.lua 2>/dev/null || echo "❌ Controller file not found"
+ls -la /usr/lib/lua/luci/model/cbi/bdix.lua 2>/dev/null || echo "❌ Model file not found"
 
 # Check if redsocks is working
 if redsocks -h >/dev/null 2>&1; then
@@ -102,7 +134,18 @@ else
 fi
 
 echo ""
-echo "📋 Alternative Solutions:"
+echo "📋 Next Steps:"
+echo ""
+if [ ! -f "/usr/lib/lua/luci/controller/bdix.lua" ]; then
+    echo "❗ LuCI files are missing! Please run the manual installation:"
+    echo "   wget -O - https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/install-manual.sh | sh"
+    echo ""
+fi
+
+echo "🔧 If BDIX page still shows 404:"
+echo "1. Clear cache manually: rm -rf /tmp/luci-*"
+echo "2. Restart web server: /etc/init.d/uhttpd restart" 
+echo "3. Wait 30 seconds, then try again"
 echo ""
 echo "If redsocks continues to crash:"
 echo "1. Try shadowsocks-libev instead:"
@@ -111,12 +154,8 @@ echo ""
 echo "2. Use manual iptables + SSH tunnel:"
 echo "   ssh -D 1080 user@proxy-server"
 echo ""
-echo "If Lua runtime still missing:"
-echo "1. Check OpenWRT version compatibility"
-echo "2. Try installing from different feeds"
-echo "3. Use command-line configuration only"
-echo ""
 echo "🌐 Try accessing: http://192.168.3.1/cgi-bin/luci/admin/services/bdix"
+echo "   (Wait 30 seconds after restarting uhttpd)"
 echo ""
 
 exit 0
