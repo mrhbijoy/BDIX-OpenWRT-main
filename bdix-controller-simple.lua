@@ -39,26 +39,28 @@ function action_index()
 	local custom_ips = uci:get("bdix", "config", "custom_ips") or ""
 	local custom_domains = uci:get("bdix", "config", "custom_domains") or ""
 	local safety_ips = uci:get("bdix", "config", "safety_ips") or "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
-	
-	-- Convert to tables for display
-	local ip_list = {}	local domain_list = {}
+		-- Convert to tables for display
+	local ip_list = {}
+	local domain_list = {}
 	local safety_list = {}
-	
-	if custom_ips ~= "" then
+		if custom_ips ~= "" then
 		for ip in string.gmatch(custom_ips, "([^,]+)") do
-			table.insert(ip_list, string.gsub(ip, "^%s*(.-)%s*$", "%1"))
+			local clean_ip = string.gsub(ip, "^%s*(.-)%s*$", "%1")
+			table.insert(ip_list, clean_ip)
 		end
 	end
 	
 	if custom_domains ~= "" then
 		for domain in string.gmatch(custom_domains, "([^,]+)") do
-			table.insert(domain_list, string.gsub(domain, "^%s*(.-)%s*$", "%1"))
+			local clean_domain = string.gsub(domain, "^%s*(.-)%s*$", "%1")
+			table.insert(domain_list, clean_domain)
 		end
 	end
 	
 	if safety_ips ~= "" then
 		for ip in string.gmatch(safety_ips, "([^,]+)") do
-			table.insert(safety_list, string.gsub(ip, "^%s*(.-)%s*$", "%1"))
+			local clean_ip = string.gsub(ip, "^%s*(.-)%s*$", "%1")
+			table.insert(safety_list, clean_ip)
 		end
 	end
 	
