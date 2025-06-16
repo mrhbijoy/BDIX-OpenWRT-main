@@ -27,38 +27,25 @@ function action_index()
 	local uci = require "luci.model.uci".cursor()
 	local http = require "luci.http"
 
-	-- Check authentication first
-	local authenticated, auth_error = check_authentication()
-	if not authenticated then
-		show_login_page(auth_error)
-		return
-	end
-
 	-- Handle form submission
 	if http.formvalue("action") then
 		if http.formvalue("action") == "save" then
 			action_save()
 			return
-		elseif http.formvalue("action") == "logout" then
-			http.header("Set-Cookie", "bdix_session=; Path=/; Max-Age=0")
-			show_login_page("Logged out successfully")
-			return
 		end
 	end	-- Load configuration
-	local proxy_server = uci:get("bdix", "bdix", "proxy_ip") or "113.192.43.43"
+	local proxy_server = uci:get("bdix", "bdix", "proxy_ip") or ""
 	local proxy_port = uci:get("bdix", "bdix", "proxy_port") or "1080"
 	local local_port = uci:get("bdix", "bdix", "local_port") or "1337"
-	local socks_user = uci:get("bdix", "bdix", "username") or ""
-	local socks_pass = uci:get("bdix", "bdix", "password") or ""
 
 	-- Check service status
 	local running = (sys.call("pgrep redsocks > /dev/null") == 0)
 
 	-- Check iptables rules
-	local iptables_active = (sys.call("iptables -t nat -L | grep -q '1337'") == 0)
+	local iptables_active = (sys.call("iptables -t nat -L | grep -q '".. local_port .."'") == 0)
 	local iptables_rules = {}
 	if iptables_active then
-		local rules_output = sys.exec("iptables -t nat -L PREROUTING -n --line-numbers | grep 1337")
+		local rules_output = sys.exec("iptables -t nat -L PREROUTING -n --line-numbers | grep " .. local_port)
 		for line in rules_output:gmatch("[^\r\n]+") do
 			iptables_rules[#iptables_rules + 1] = line
 		end
@@ -163,24 +150,7 @@ function action_index()
 			</div>
 
 			<div class="section">
-				<h3>🔐 Authentication Settings</h3>
-				
-				<div class="form-group">
-					<label for="username">Username:</label>
-					<input type="text" id="username" name="username" value="]] .. (uci:get("bdix", "config", "username") or "admin") .. [[" placeholder="admin">
-					<div class="help">Username for accessing this interface</div>
-				</div>
-				
-				<div class="form-group">
-					<label for="password">Password:</label>
-					<input type="password" id="password" name="password" value="]] .. (uci:get("bdix", "config", "password") or "admin") .. [[" placeholder="Enter new password">
-					<div class="help">Password for accessing this interface</div>
-				</div>
-			</div>
-
-			<div class="section">
 				<button type="submit" class="button">Save Configuration</button>
-				<button type="button" class="button danger" onclick="if(confirm('Are you sure you want to logout?')) { var form = document.createElement('form'); form.method = 'post'; var input = document.createElement('input'); input.type = 'hidden'; input.name = 'action'; input.value = 'logout'; form.appendChild(input); document.body.appendChild(form); form.submit(); }">Logout</button>
 			</div>
 		</form>
 ]])
@@ -221,36 +191,19 @@ function action_save()
 	local uci = require "luci.model.uci".cursor()
 	local http = require "luci.http"
 
-	-- Check authentication first
-	local authenticated, auth_error = check_authentication()
-	if not authenticated then
-		show_login_page(auth_error)
-		return
-	end
 	-- Get form values
 	local proxy_server = http.formvalue("proxy_server") or "113.192.43.43"
 	local proxy_port = http.formvalue("proxy_port") or "1080"
 	local local_port = http.formvalue("local_port") or "1337"
 	local socks_user = http.formvalue("socks_user") or ""
 	local socks_pass = http.formvalue("socks_pass") or ""
-	local username = http.formvalue("username") or "admin"
-	local password = http.formvalue("password") or "admin"
 	-- Save to UCI
 	uci:set("bdix", "bdix", "proxy_ip", proxy_server)
 	uci:set("bdix", "bdix", "proxy_port", proxy_port)
 	uci:set("bdix", "bdix", "local_port", local_port)
 	uci:set("bdix", "bdix", "username", socks_user)
 	uci:set("bdix", "bdix", "password", socks_pass)
-	uci:set("bdix", "config", "username", username)
-	uci:set("bdix", "config", "password", password)
 	uci:commit("bdix")
-
-	-- If password was changed, invalidate current session
-	local current_user = http.getcookie("bdix_session")
-	if current_user and string.find(current_user, username) then
-		-- Update session with new credentials
-		http.header("Set-Cookie", "bdix_session=authenticated_" .. username .. "; Path=/; Max-Age=86400")
-	end
 
 	-- Redirect back to main page
 	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
@@ -264,49 +217,21 @@ function action_status()
 end
 
 function action_start()
-	-- Check authentication
-	local authenticated, auth_error = check_authentication()
-	if not authenticated then
-		show_login_page(auth_error)
-		return
-	end
-	
 	luci.sys.call("/etc/init.d/bdix start")
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
 
 function action_stop()
-	-- Check authentication
-	local authenticated, auth_error = check_authentication()
-	if not authenticated then
-		show_login_page(auth_error)
-		return
-	end
-	
 	luci.sys.call("/etc/init.d/bdix stop")
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
 
 function action_restart()
-	-- Check authentication
-	local authenticated, auth_error = check_authentication()
-	if not authenticated then
-		show_login_page(auth_error)
-		return
-	end
-	
 	luci.sys.call("/etc/init.d/bdix restart")
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
 
 function action_iptables_start()
-	-- Check authentication
-	local authenticated, auth_error = check_authentication()
-	if not authenticated then
-		show_login_page(auth_error)
-		return
-	end
-	
 	local sys = require "luci.sys"
 	local uci = require "luci.model.uci".cursor()
 		-- Get configuration
@@ -342,13 +267,6 @@ function action_iptables_start()
 end
 
 function action_iptables_stop()
-	-- Check authentication
-	local authenticated, auth_error = check_authentication()
-	if not authenticated then
-		show_login_page(auth_error)
-		return
-	end
-	
 	local sys = require "luci.sys"
 	
 	-- Remove and clean up BDIX chain
@@ -357,95 +275,4 @@ function action_iptables_stop()
 	sys.call("iptables -t nat -X BDIX 2>/dev/null")
 	
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
-end
-
-function check_authentication()
-	local http = require "luci.http"
-	local uci = require "luci.model.uci".cursor()
-	
-	-- Get stored credentials from UCI
-	local stored_username = uci:get("bdix", "config", "username") or "admin"
-	local stored_password = uci:get("bdix", "config", "password") or "admin"
-	
-	-- Check if credentials are provided
-	local auth_user = http.formvalue("auth_user")
-	local auth_pass = http.formvalue("auth_pass")
-	
-	-- Check session
-	local session_token = http.getcookie("bdix_session")
-	local valid_session = (session_token == "authenticated_" .. stored_username)
-	
-	if valid_session then
-		return true
-	end
-	
-	if auth_user and auth_pass then
-		if auth_user == stored_username and auth_pass == stored_password then
-			-- Set session cookie (valid for 24 hours)
-			http.header("Set-Cookie", "bdix_session=authenticated_" .. stored_username .. "; Path=/; Max-Age=86400")
-			return true
-		else
-			return false, "Invalid username or password"
-		end
-	end
-	
-	return false, "Authentication required"
-end
-
-function show_login_page(error_msg)
-	local http = require "luci.http"
-	
-	http.prepare_content("text/html")
-	http.write([[
-<!DOCTYPE html>
-<html>
-<head>
-	<title>BDIX Proxy - Login</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<style>
-		body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-		.login-container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-width: 400px; width: 100%; }
-		.login-header { text-align: center; margin-bottom: 30px; }
-		.login-header h1 { color: #333; margin: 0; }
-		.login-header p { color: #666; margin: 10px 0 0 0; }
-		.form-group { margin-bottom: 20px; }
-		.form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
-		.form-group input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-		.form-group input:focus { border-color: #667eea; outline: none; }
-		.login-button { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
-		.login-button:hover { opacity: 0.9; }
-		.error { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-bottom: 20px; text-align: center; }
-		.footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-	</style>
-</head>
-<body>
-	<div class="login-container">
-		<div class="login-header">
-			<h1>🔐 BDIX Proxy</h1>
-			<p>Authentication Required</p>
-		</div>
-		
-		]] .. (error_msg and '<div class="error">' .. error_msg .. '</div>' or '') .. [[
-		
-		<form method="post">
-			<div class="form-group">
-				<label for="auth_user">Username:</label>
-				<input type="text" id="auth_user" name="auth_user" required autocomplete="username">
-			</div>
-			
-			<div class="form-group">
-				<label for="auth_pass">Password:</label>
-				<input type="password" id="auth_pass" name="auth_pass" required autocomplete="current-password">
-			</div>
-			
-			<button type="submit" class="login-button">Login</button>
-		</form>
-		
-		<div class="footer">
-			<p>Default credentials: admin / admin</p>
-		</div>
-	</div>
-</body>
-</html>
-]])
 end
