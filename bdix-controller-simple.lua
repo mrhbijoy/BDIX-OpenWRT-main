@@ -147,8 +147,30 @@ function action_index()
 					<div class="help">Local port for traffic redirection (usually 1337)</div>
 				</div>
 				
-				<button type="submit" class="button">Save Configuration</button>
-			</form>
+				<button type="submit" class="button">Save Configuration</button>			</form>
+		</div>
+		
+		<div class="section">
+			<h3>IP/Domain Exclusions</h3>
+			<p>These IPs and domains will <strong>NOT</strong> go through the BDIX proxy (direct connection):</p>
+			
+			<div class="iptables-rules">
+				<strong>Built-in Safety Exclusions:</strong>
+				<pre>192.168.0.0/16 - Local networks (keeps web UI accessible)
+172.16.0.0/12 - Private networks
+10.0.0.0/8 - Private networks
+127.0.0.0/8 - Localhost
+169.254.0.0/16 - Link-local addresses</pre>
+			</div>
+			
+			<div class="iptables-rules">
+				<strong>Domain Exclusions (if configured):</strong>
+				<pre>facebook.com, messenger.com</pre>
+			</div>
+			
+			<div class="help">
+				<strong>⚠️ Safety Note:</strong> Local network IPs (192.168.x.x) are automatically excluded to prevent losing access to your router's web interface.
+			</div>
 		</div>
 		
 		<div class="section">
@@ -239,23 +261,47 @@ function action_iptables_start()
 	-- Get configuration
 	local local_port = uci:get("bdix", "config", "local_port") or "1337"
 	
-	-- Add iptables rules for traffic redirection
-	sys.call("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port " .. local_port)
-	sys.call("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port " .. local_port)
+	-- Create BDIX chain with safety rules (based on your init script)
+	sys.call("iptables -t nat -N BDIX 2>/dev/null")
+	
+	-- Add safety exclusions for local networks and management
+	sys.call("iptables -t nat -A BDIX -d 192.168.0.0/16 -j RETURN")  -- Local networks
+	sys.call("iptables -t nat -A BDIX -d 172.16.0.0/12 -j RETURN")   -- Private networks
+	sys.call("iptables -t nat -A BDIX -d 10.0.0.0/8 -j RETURN")      -- Private networks
+	sys.call("iptables -t nat -A BDIX -d 127.0.0.0/8 -j RETURN")     -- Localhost
+	sys.call("iptables -t nat -A BDIX -d 169.254.0.0/16 -j RETURN")  -- Link-local
+	sys.call("iptables -t nat -A BDIX -d 224.0.0.0/4 -j RETURN")     -- Multicast
+	sys.call("iptables -t nat -A BDIX -d 240.0.0.0/4 -j RETURN")     -- Reserved
+	
+	-- Add domain exclusions (optional - add your preferred sites)
+	sys.call("iptables -t nat -A BDIX -d facebook.com -j RETURN 2>/dev/null")
+	sys.call("iptables -t nat -A BDIX -d messenger.com -j RETURN 2>/dev/null")
+	
+	-- Redirect remaining traffic to proxy
+	sys.call("iptables -t nat -A BDIX -p tcp -j REDIRECT --to-ports " .. local_port)
+	
+	-- Apply the chain to PREROUTING
+	sys.call("iptables -t nat -A PREROUTING -i br-lan -p tcp -j BDIX")
+	
+	-- Allow access to proxy port
+	sys.call("iptables -A INPUT -i br-lan -p tcp --dport " .. local_port .. " -j ACCEPT")
 	
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
 
 function action_iptables_stop()
 	local sys = require "luci.sys"
-	local uci = require "luci.model.uci".cursor()
 	
-	-- Get configuration
-	local local_port = uci:get("bdix", "config", "local_port") or "1337"
+	-- Clean up BDIX iptables rules (based on your init script)
+	sys.call("iptables -t nat -F BDIX 2>/dev/null")
+	sys.call("iptables -t nat -D PREROUTING -i br-lan -p tcp -j BDIX 2>/dev/null")
+	sys.call("iptables -t nat -X BDIX 2>/dev/null")
 	
-	-- Remove iptables rules
-	sys.call("iptables -t nat -D PREROUTING -p tcp --dport 80 -j REDIRECT --to-port " .. local_port .. " 2>/dev/null")
-	sys.call("iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port " .. local_port .. " 2>/dev/null")
+	-- Remove INPUT rule
+	sys.call("iptables -D INPUT -i br-lan -p tcp --dport 1337 -j ACCEPT 2>/dev/null")
+	
+	-- Restart firewall to restore normal rules
+	sys.call("/etc/init.d/firewall restart")
 	
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
