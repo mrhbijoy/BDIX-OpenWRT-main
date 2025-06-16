@@ -1,12 +1,12 @@
 config bdix 'bdix'
-	option enabled '0'
+	option enabled '1'
 	option proxy_ip '113.192.43.43'
 	option proxy_port '1080'
 	option username 'bijoy2@itcnbd'
 	option password '89890'
 	option local_port '1337'
 	option log_level 'on'
-	option auto_start '0'
+	option auto_start '1'
 
 config advanced 'advanced'
 

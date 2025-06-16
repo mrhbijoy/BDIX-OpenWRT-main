@@ -10,14 +10,14 @@ echo "📋 Setting up your SOCKS5 proxy configuration..."
 # Create the UCI configuration with your SOCKS5 details
 uci -q delete bdix.bdix
 uci set bdix.bdix=bdix
-uci set bdix.bdix.enabled='0'
+uci set bdix.bdix.enabled='1'
 uci set bdix.bdix.proxy_ip='113.192.43.43'
 uci set bdix.bdix.proxy_port='1080'
 uci set bdix.bdix.username='bijoy2@itcnbd'
 uci set bdix.bdix.password='89890'
 uci set bdix.bdix.local_port='1337'
 uci set bdix.bdix.log_level='on'
-uci set bdix.bdix.auto_start='0'
+uci set bdix.bdix.auto_start='1'
 
 # Set web interface authentication (separate from SOCKS5)
 uci -q delete bdix.config
@@ -72,6 +72,16 @@ rm -rf /tmp/luci-* >/dev/null 2>&1
 # Restart web server
 echo "🔄 Restarting web services..."
 /etc/init.d/uhttpd restart >/dev/null 2>&1
+
+# Start BDIX service
+echo "🚀 Starting BDIX service..."
+/etc/init.d/bdix start
+
+if [ $? -eq 0 ]; then
+    echo "✅ BDIX service started successfully"
+else
+    echo "⚠️  BDIX service start attempted (check manually)"
+fi
 
 echo ""
 echo "🎉 SOCKS5 Setup Complete!"
