@@ -63,21 +63,19 @@ function action_index()
 	</style>
 </head>
 <body>
-	<div class="container">
-		<div class="header">
-			<h1>🌐 BDIX Proxy Configuration</h1>
+	<div class="container">		<div class="header">
+			<h1>BDIX Proxy Configuration</h1>
 		</div>
 		
 		<div class="status ]] .. (running and "running" or "stopped") .. [[">
-			<strong>Status:</strong> ]] .. (running and "🟢 Running" or "🔴 Stopped") .. [[
+			<strong>Status:</strong> ]] .. (running and "Running" or "Stopped") .. [[
 		</div>
-		
-		<div class="section">
+				<div class="section">
 			<h3>Service Control</h3>
-			<button class="button success" onclick="location.href='/cgi-bin/luci/admin/system/bdix/start'">▶️ Start</button>
-			<button class="button danger" onclick="location.href='/cgi-bin/luci/admin/system/bdix/stop'">⏹️ Stop</button>
-			<button class="button" onclick="location.href='/cgi-bin/luci/admin/system/bdix/restart'">🔄 Restart</button>
-			<button class="button" onclick="location.reload()">🔍 Refresh Status</button>
+			<button class="button success" onclick="location.href='/cgi-bin/luci/admin/system/bdix/start'">Start</button>
+			<button class="button danger" onclick="location.href='/cgi-bin/luci/admin/system/bdix/stop'">Stop</button>
+			<button class="button" onclick="location.href='/cgi-bin/luci/admin/system/bdix/restart'">Restart</button>
+			<button class="button" onclick="location.reload()">Refresh Status</button>
 		</div>
 		
 		<div class="section">
@@ -109,7 +107,7 @@ function action_index()
 					<div class="help">Local port for traffic redirection (usually 1337)</div>
 				</div>
 				
-				<button type="submit" class="button">💾 Save Configuration</button>
+				<button type="submit" class="button">Save Configuration</button>
 			</form>
 		</div>
 		
