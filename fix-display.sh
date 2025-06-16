@@ -24,19 +24,32 @@ chmod 644 /usr/lib/lua/luci/controller/bdix.lua
 echo "✅ Fixed controller installed"
 
 # Clear cache and restart
-echo "🗂️ Clearing LuCI cache..."
+echo "🗂️ Clearing ALL LuCI cache and rebuilding menu..."
 rm -rf /tmp/luci-*
+rm -rf /tmp/luci-indexcache*
+rm -rf /var/luci-*
 
-echo "🔄 Restarting uhttpd..."
-/etc/init.d/uhttpd restart
+echo "🔄 Stopping uhttpd..."
+/etc/init.d/uhttpd stop
+sleep 5
+
+echo "🔄 Starting uhttpd..."
+/etc/init.d/uhttpd start
+sleep 3
+
+echo "🔄 Force menu rebuild..."
+# Force LuCI to rebuild menu structure
+wget -q -O /dev/null "http://127.0.0.1/cgi-bin/luci" 2>/dev/null || true
 
 echo ""
-echo "✅ Display fixes applied!"
+echo "✅ Menu and display fixes applied!"
 echo ""
 echo "📍 Access: http://192.168.3.1/cgi-bin/luci/admin/system/bdix"
 echo ""
-echo "🔧 Note: The System menu link might still show the old URL"
-echo "   Just use the direct link above or bookmark it"
+echo "🔧 The broken Services menu link should now be removed"
+echo "   Check System menu for the correct BDIX Proxy link"
+echo ""
+echo "⏰ Wait 30 seconds, then refresh your browser and check System menu"
 echo ""
 
 # Test the controller
@@ -55,6 +68,8 @@ echo ""
 echo "📋 What was fixed:"
 echo "✅ Removed emoji characters"
 echo "✅ Clean text display"
+echo "✅ Removed broken Services menu entry"
+echo "✅ Fixed System menu registration"
 echo "✅ All functionality preserved"
 echo ""
 

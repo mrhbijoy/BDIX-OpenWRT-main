@@ -8,11 +8,11 @@ function index()
 		return
 	end
 
-	-- Register under System menu with simple form handler
+	-- Register ONLY under System menu (remove Services registration)
 	local page = entry({"admin", "system", "bdix"}, call("action_index"), _("BDIX Proxy"), 70)
 	page.dependent = true
 
-	-- Action handlers
+	-- Action handlers (all under system path)
 	entry({"admin", "system", "bdix", "status"}, call("action_status"))
 	entry({"admin", "system", "bdix", "start"}, call("action_start"))
 	entry({"admin", "system", "bdix", "stop"}, call("action_stop"))
