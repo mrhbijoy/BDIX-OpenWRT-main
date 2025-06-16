@@ -41,8 +41,7 @@ function action_index()
 	local safety_ips = uci:get("bdix", "config", "safety_ips") or "192.168.0.0/16,172.16.0.0/12,10.0.0.0/8,127.0.0.0/8,169.254.0.0/16,224.0.0.0/4,240.0.0.0/4"
 	
 	-- Convert to tables for display
-	local ip_list = {}
-	local domain_list = {}
+	local ip_list = {}	local domain_list = {}
 	local safety_list = {}
 	
 	if custom_ips ~= "" then
@@ -56,7 +55,8 @@ function action_index()
 			table.insert(domain_list, string.gsub(domain, "^%s*(.-)%s*$", "%1"))
 		end
 	end
-		if safety_ips ~= "" then
+	
+	if safety_ips ~= "" then
 		for ip in string.gmatch(safety_ips, "([^,]+)") do
 			table.insert(safety_list, string.gsub(ip, "^%s*(.-)%s*$", "%1"))
 		end
