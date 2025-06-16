@@ -14,7 +14,7 @@ opkg update
 
 # Install Lua runtime for LuCI
 echo "Installing Lua runtime..."
-opkg install lua luci-base-lua luci-mod-admin-full
+opkg install lua liblua5.1.5 luci-mod-admin-full
 
 # Alternative redsocks package that might be more stable
 echo "Checking redsocks installation..."
