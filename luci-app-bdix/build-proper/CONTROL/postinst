@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Post-installation script for luci-app-bdix
+
+# Clear LuCI cache
+rm -rf /tmp/luci-*
+
+# Restart web interface
+/etc/init.d/uhttpd restart
+
+echo "BDIX Web Interface installed successfully!"
+echo "Access it via: Services -> BDIX Proxy"
+
+exit 0

@@ -1,0 +1,29 @@
+config bdix 'bdix'
+	option enabled '0'
+	option proxy_ip '127.0.0.1'
+	option proxy_port '1080'
+	option username ''
+	option password ''
+	option local_port '1337'
+	option log_level 'on'
+	option auto_start '0'
+
+config advanced 'advanced'
+
+config domain
+	option name 'facebook.com'
+
+config domain
+	option name 'messenger.com'
+
+config domain
+	option name 'wise.com'
+
+config domain
+	option name 'priyo.com'
+
+config domain
+	option name 'upwork.com'
+
+config domain
+	option name 'aibl.com.bd'

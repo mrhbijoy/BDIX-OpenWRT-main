@@ -1,0 +1,57 @@
+#!/bin/sh
+
+# Post-installation script for luci-app-bdix
+
+echo "Installing BDIX Web Interface..."
+
+# Function to check if package is installed
+check_package() {
+    opkg list-installed | grep -q "^$1 "
+}
+
+# Function to install package if not present
+install_if_missing() {
+    local package="$1"
+    if ! check_package "$package"; then
+        echo "Installing missing dependency: $package"
+        opkg update > /dev/null 2>&1
+        opkg install "$package"
+        if [ $? -eq 0 ]; then
+            echo "✓ Successfully installed $package"
+        else
+            echo "⚠ Warning: Failed to install $package"
+            echo "  You may need to install it manually: opkg install $package"
+        fi
+    else
+        echo "✓ Dependency $package is already installed"
+    fi
+}
+
+# Install required dependencies
+echo "Checking and installing dependencies..."
+install_if_missing "redsocks"
+install_if_missing "iptables"
+install_if_missing "iptables-mod-nat-extra"
+
+# Stop existing redsocks service if running
+if [ -f "/etc/init.d/redsocks" ]; then
+    echo "Stopping existing redsocks service..."
+    /etc/init.d/redsocks stop 2>/dev/null
+    /etc/init.d/redsocks disable 2>/dev/null
+fi
+
+# Clear LuCI cache
+echo "Clearing LuCI cache..."
+rm -rf /tmp/luci-*
+
+# Restart web interface
+echo "Restarting web interface..."
+/etc/init.d/uhttpd restart
+
+echo ""
+echo "🎉 BDIX Web Interface installed successfully!"
+echo "📡 Access it via: Services → BDIX Proxy"
+echo "🔧 Configure your proxy settings and enjoy!"
+echo ""
+
+exit 0

@@ -1,0 +1,76 @@
+<%#
+	Copyright (C) 2023 OpenWrt.org
+-%>
+
+<script type="text/javascript">//<![CDATA[
+	var bdix_status_timer;
+
+	function bdix_update_status() {
+		XHR.get('<%=url("admin/services/bdix/status")%>', null, function(x, info) {
+			var status_element = document.getElementById('bdix-status');
+			var control_element = document.getElementById('bdix-controls');
+			
+			if (info && info.running) {
+				status_element.innerHTML = '<span style="color:green; font-weight:bold"><%:Running%></span>';
+				control_element.innerHTML = 
+					'<button class="btn btn-primary" onclick="bdix_service_action(\'stop\')"><%:Stop%></button> ' +
+					'<button class="btn btn-secondary" onclick="bdix_service_action(\'restart\')"><%:Restart%></button>';
+			} else {
+				status_element.innerHTML = '<span style="color:red; font-weight:bold"><%:Stopped%></span>';
+				control_element.innerHTML = 
+					'<button class="btn btn-success" onclick="bdix_service_action(\'start\')"><%:Start%></button>';
+			}
+			
+			if (!info || !info.configured) {
+				status_element.innerHTML += ' <span style="color:orange">(<%:Not Configured%>)</span>';
+			}
+		});
+	}
+
+	function bdix_service_action(action) {
+		var url = '<%=url("admin/services/bdix/")%>' + action;
+		XHR.get(url, null, function(x, result) {
+			if (result && result.success) {
+				setTimeout(bdix_update_status, 1000);
+			} else {
+				alert('<%:Service action failed%>');
+			}
+		});
+	}
+
+	// Update status every 5 seconds
+	bdix_status_timer = setInterval(bdix_update_status, 5000);
+	bdix_update_status();
+//]]></script>
+
+<fieldset class="cbi-section">
+	<legend><%:Service Status%></legend>
+	<table class="table">
+		<tr>
+			<td width="33%"><%:Status%></td>
+			<td id="bdix-status"><%:Checking...%></td>
+		</tr>
+		<tr>
+			<td width="33%"><%:Controls%></td>
+			<td id="bdix-controls">
+				<button class="btn btn-secondary" disabled><%:Loading...%></button>
+			</td>
+		</tr>
+	</table>
+</fieldset>
+
+<style>
+.btn {
+	padding: 4px 12px;
+	margin: 2px;
+	border: 1px solid #ccc;
+	border-radius: 3px;
+	cursor: pointer;
+	font-size: 12px;
+}
+.btn-primary { background-color: #007bff; color: white; border-color: #007bff; }
+.btn-success { background-color: #28a745; color: white; border-color: #28a745; }
+.btn-secondary { background-color: #6c757d; color: white; border-color: #6c757d; }
+.btn:hover { opacity: 0.8; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>

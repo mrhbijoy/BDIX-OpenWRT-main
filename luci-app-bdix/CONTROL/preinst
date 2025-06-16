@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# Pre-installation script for luci-app-bdix
+
+echo "Preparing BDIX Web Interface installation..."
+
+# Check if opkg is available
+if ! command -v opkg >/dev/null 2>&1; then
+    echo "Error: opkg package manager not found!"
+    echo "This package is designed for OpenWRT systems."
+    exit 1
+fi
+
+# Check available storage space (at least 5MB)
+available_space=$(df /tmp | tail -1 | awk '{print $4}')
+if [ "$available_space" -lt 5120 ]; then
+    echo "Warning: Low storage space. At least 5MB free space recommended."
+fi
+
+# Update package lists
+echo "Updating package lists..."
+opkg update
+
+echo "✓ Pre-installation checks completed"
+
+exit 0

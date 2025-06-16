@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Pre-removal script for luci-app-bdix
+
+# Stop the service
+/etc/init.d/bdix stop 2>/dev/null
+/etc/init.d/bdix disable 2>/dev/null
+
+exit 0

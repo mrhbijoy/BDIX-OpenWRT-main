@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Post-removal script for luci-app-bdix
+
+# Clean up configuration files
+rm -f /etc/bdix.conf 2>/dev/null
+
+# Clear LuCI cache
+rm -rf /tmp/luci-*
+
+# Restart web interface
+/etc/init.d/uhttpd restart
+
+echo "BDIX Web Interface removed successfully!"
+
+exit 0

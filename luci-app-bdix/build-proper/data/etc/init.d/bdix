@@ -1,0 +1,139 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2023 OpenWrt.org
+
+START=90
+USE_PROCD=1
+
+INTERFACE=br-lan
+CONFIG_FILE="/etc/bdix.conf"
+
+start_service() {
+    config_load bdix
+    
+    local enabled
+    config_get enabled bdix enabled 0
+    
+    [ "$enabled" -eq 1 ] || {
+        echo "BDIX is disabled"
+        return 1
+    }
+    
+    # Generate configuration file from UCI
+    generate_config
+    
+    # Start iptables rules
+    iptable_start
+    
+    # Start redsocks with procd
+    procd_open_instance
+    procd_set_param command /usr/sbin/redsocks -c "$CONFIG_FILE"
+    procd_set_param respawn
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+stop_service() {
+    iptable_stop
+    
+    echo "Restarting firewall..."
+    /etc/init.d/firewall restart &> /dev/null
+}
+
+generate_config() {
+    local proxy_ip proxy_port username password local_port log_level
+    
+    config_get proxy_ip bdix proxy_ip "127.0.0.1"
+    config_get proxy_port bdix proxy_port "1080"
+    config_get username bdix username ""
+    config_get password bdix password ""
+    config_get local_port bdix local_port "1337"
+    config_get log_level bdix log_level "on"
+    
+    cat > "$CONFIG_FILE" << EOF
+base {
+    log_debug = off;
+    log_info = $log_level;
+    log = "syslog:local7";
+    daemon = on;
+    redirector = iptables;
+}
+
+redsocks {
+    local_ip = 0.0.0.0;
+    local_port = $local_port;
+    ip = $proxy_ip;
+    port = $proxy_port;
+    type = socks5;
+    login = "$username";
+    password = "$password";
+}
+EOF
+}
+
+iptable_start() {
+    echo "Starting BDIX iptables..."
+    
+    # Get local port from config
+    local local_port
+    config_get local_port bdix local_port "1337"
+    
+    # Create BDIX chain
+    iptables -t nat -N BDIX 2>/dev/null
+    
+    # Add direct connection rules for configured domains
+    add_domain_rules
+    
+    # Private IP ranges bypass
+    iptables -t nat -A BDIX -d 0.0.0.0/8 -j RETURN
+    iptables -t nat -A BDIX -d 10.0.0.0/8 -j RETURN
+    iptables -t nat -A BDIX -d 127.0.0.0/8 -j RETURN
+    iptables -t nat -A BDIX -d 169.254.0.0/16 -j RETURN
+    iptables -t nat -A BDIX -d 172.16.0.0/12 -j RETURN
+    iptables -t nat -A BDIX -d 192.168.0.0/16 -j RETURN
+    iptables -t nat -A BDIX -d 224.0.0.0/4 -j RETURN
+    iptables -t nat -A BDIX -d 240.0.0.0/4 -j RETURN
+    
+    # Redirect to redsocks
+    iptables -t nat -A BDIX -p tcp -j REDIRECT --to-ports $local_port
+    
+    # Apply to traffic
+    iptables -t nat -A PREROUTING -i $INTERFACE -p tcp -j BDIX
+    iptables -A INPUT -i $INTERFACE -p tcp --dport $local_port -j ACCEPT
+    
+    echo "BDIX iptables started"
+}
+
+add_domain_rules() {
+    # Add rules for each configured domain
+    config_foreach add_single_domain domain
+}
+
+add_single_domain() {
+    local domain_name
+    config_get domain_name "$1" name
+    
+    [ -n "$domain_name" ] && {
+        echo "Adding direct rule for: $domain_name"
+        iptables -t nat -A BDIX -d "$domain_name" -j RETURN
+    }
+}
+
+iptable_stop() {
+    echo "Cleaning BDIX iptables..."
+    
+    # Clean up BDIX rules
+    iptables -t nat -F BDIX 2>/dev/null
+    iptables -t nat -X BDIX 2>/dev/null
+    
+    echo "BDIX iptables cleaned"
+}
+
+service_triggers() {
+    procd_add_reload_trigger "bdix"
+}
+
+reload_service() {
+    stop
+    start
+}

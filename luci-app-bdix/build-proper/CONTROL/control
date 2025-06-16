@@ -1,0 +1,12 @@
+Package: luci-app-bdix
+Version: 1.0.0-1
+Depends: luci-base, redsocks, iptables, iptables-mod-nat-extra
+Section: luci
+Architecture: all
+Installed-Size: 25600
+Maintainer: BDIX Team
+Description: LuCI support for BDIX Proxy
+ This package provides a web interface for configuring and managing
+ BDIX proxy settings through the LuCI web interface on OpenWRT routers.
+ It allows easy configuration of SOCKS5 proxy settings, domain management,
+ and service control through a user-friendly GUI.
