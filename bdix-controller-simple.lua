@@ -217,17 +217,56 @@ function action_status()
 end
 
 function action_start()
-	luci.sys.call("/etc/init.d/bdix start")
+	local sys = require "luci.sys"
+	local http = require "luci.http"
+
+	-- Start service
+	sys.call("/etc/init.d/bdix start")
+
+	-- If Ajax request, return plain text
+	if http.getenv("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest" then
+		http.prepare_content("text/plain")
+		http.write("BDIX service started")
+		return
+	end
+
+	-- Otherwise redirect for browser
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
 
 function action_stop()
-	luci.sys.call("/etc/init.d/bdix stop")
+	local sys = require "luci.sys"
+	local http = require "luci.http"
+
+	-- Stop service
+	sys.call("/etc/init.d/bdix stop")
+
+	-- Ajax response
+	if http.getenv("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest" then
+		http.prepare_content("text/plain")
+		http.write("BDIX service stopped")
+		return
+	end
+
+	-- Redirect
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
 
 function action_restart()
-	luci.sys.call("/etc/init.d/bdix restart")
+	local sys = require "luci.sys"
+	local http = require "luci.http"
+
+	-- Restart service
+	sys.call("/etc/init.d/bdix restart")
+
+	-- Ajax response
+	if http.getenv("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest" then
+		http.prepare_content("text/plain")
+		http.write("BDIX service restarted")
+		return
+	end
+
+	-- Redirect
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
 

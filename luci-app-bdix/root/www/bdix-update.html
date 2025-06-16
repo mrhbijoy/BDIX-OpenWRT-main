@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BDIX Update UI</n  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #fff; padding: 20px; border-radius: 8px; }
+    h1 { text-align: center; color: #333; }
+    .button { display: inline-block; margin: 10px 5px; padding: 10px 20px; background: #0066cc; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    .button:hover { background: #0052a3; }
+    #log { width: 100%; height: 200px; margin-top: 20px; overflow-y: scroll; background: #222; color: #0f0; padding: 10px; border-radius: 4px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BDIX Update Dashboard</h1>
+    <div>
+      <button class="button" id="btn-update-proxy">Update Proxy Config</button>
+      <button class="button" id="btn-add-direct">Add Direct Bypass</button>
+      <button class="button" id="btn-start">Start Service</button>
+      <button class="button" id="btn-stop">Stop Service</button>
+      <button class="button" id="btn-restart">Restart Service</button>
+    </div>
+    <pre id="log">Ready...</pre>
+  </div>
+  <script>
+    function runAction(path) {
+      const log = document.getElementById('log');
+      fetch(path, { method: 'POST' })
+        .then(r => r.text())
+        .then(txt => { log.textContent += '\n' + txt; log.scrollTop = log.scrollHeight; })
+        .catch(e => { log.textContent += '\nError: ' + e; });
+    }
+    document.getElementById('btn-start').onclick = ()=> runAction('/cgi-bin/luci/admin/system/bdix/start');
+    document.getElementById('btn-stop').onclick = ()=> runAction('/cgi-bin/luci/admin/system/bdix/stop');
+    document.getElementById('btn-restart').onclick = ()=> runAction('/cgi-bin/luci/admin/system/bdix/restart');
+    document.getElementById('btn-update-proxy').onclick = ()=> {
+      const ip = prompt('New Proxy IP:', '113.192.43.43');
+      if(!ip) return;
+      runAction('/cgi-bin/luci/admin/system/bdix/save?proxy_server='+encodeURIComponent(ip));
+    };
+    document.getElementById('btn-add-direct').onclick = ()=> {
+      const conn = prompt('Enter domain or CIDR to bypass:','');
+      if(!conn) return;
+      runAction('/cgi-bin/luci/admin/system/bdix/iptables_start?direct='+encodeURIComponent(conn));
+    };
+  </script>
+</body>
+</html>
