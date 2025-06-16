@@ -3,14 +3,14 @@
 ## 📦 Super Easy Installation (Recommended)
 
 ### Method 1: One-Click Web Upload
-1. **Download**: `luci-app-bdix_1.0.0-2_all.ipk`
-2. **Go to**: http://192.168.1.1 → System → Software
+1. **Download**: [luci-app-bdix_1.0.0-3_all.ipk](https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/luci-app-bdix/luci-app-bdix_1.0.0-3_all.ipk)
+2. **Go to**: http://192.168.3.1 → System → Software
 3. **Click**: "Upload Package..." → Select IPK file → Upload
 4. **Done!** 🎉 Dependencies install automatically!
 
 ### Method 2: One-Command Installation
 ```bash
-cd /tmp && wget https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/install-web.sh && chmod +x install-web.sh && sh install-web.sh && rm install-web.sh
+cd /tmp && wget https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/install-web.sh && chmod +x install-web.sh && sh install-web.sh && rm install-web.sh
 ```
 
 ## ⚙️ Quick Configuration
@@ -60,7 +60,7 @@ cd /tmp && wget https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/install-web
 
 ### Quick Health Check
 ```bash
-cd /tmp && wget -O - https://raw.githubusercontent.com/emonbhuiyan/BDIX-OpenWRT/main/verify-installation.sh | sh
+cd /tmp && wget -O - https://raw.githubusercontent.com/mrhbijoy/BDIX-OpenWRT-main/main/verify-installation.sh | sh
 ```
 
 ## 📱 What You Get

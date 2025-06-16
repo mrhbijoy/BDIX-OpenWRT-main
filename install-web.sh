@@ -32,24 +32,24 @@ echo "Installing LuCI web interface files..."
 
 # Controller
 cd /usr/lib/lua/luci/controller
-wget -O bdix.lua https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/luci-app-bdix/luasrc/controller/bdix.lua
+wget -O bdix.lua https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/luci-app-bdix/luasrc/controller/bdix.lua
 
 # Model
 cd /usr/lib/lua/luci/model/cbi
-wget -O bdix.lua https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/luci-app-bdix/luasrc/model/cbi/bdix.lua
+wget -O bdix.lua https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/luci-app-bdix/luasrc/model/cbi/bdix.lua
 
 # View
 cd /usr/lib/lua/luci/view/bdix
-wget -O status.htm https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/luci-app-bdix/luasrc/view/bdix/status.htm
+wget -O status.htm https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/luci-app-bdix/luasrc/view/bdix/status.htm
 
 # Init script
 cd /etc/init.d
-wget -O bdix https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/luci-app-bdix/root/etc/init.d/bdix
+wget -O bdix https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/luci-app-bdix/root/etc/init.d/bdix
 chmod +x bdix
 
 # Configuration
 cd /etc/config
-wget -O bdix https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/luci-app-bdix/root/etc/config/bdix
+wget -O bdix https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/luci-app-bdix/root/etc/config/bdix
 
 # Clear LuCI cache
 echo "Clearing LuCI cache..."

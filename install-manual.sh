@@ -26,23 +26,23 @@ echo "📥 Downloading and installing files..."
 
 # Download controller
 wget -O /usr/lib/lua/luci/controller/bdix.lua \
-  "https://raw.githubusercontent.com/emonbhuiyan/BDIX-OpenWRT/main/luci-app-bdix/data/usr/lib/lua/luci/controller/bdix.lua"
+  "https://raw.githubusercontent.com/mrhbijoy/BDIX-OpenWRT-main/main/luci-app-bdix/data/usr/lib/lua/luci/controller/bdix.lua"
 
 # Download model
 wget -O /usr/lib/lua/luci/model/cbi/bdix.lua \
-  "https://raw.githubusercontent.com/emonbhuiyan/BDIX-OpenWRT/main/luci-app-bdix/data/usr/lib/lua/luci/model/cbi/bdix.lua"
+  "https://raw.githubusercontent.com/mrhbijoy/BDIX-OpenWRT-main/main/luci-app-bdix/data/usr/lib/lua/luci/model/cbi/bdix.lua"
 
 # Download view
 wget -O /usr/lib/lua/luci/view/bdix/status.htm \
-  "https://raw.githubusercontent.com/emonbhuiyan/BDIX-OpenWRT/main/luci-app-bdix/data/usr/lib/lua/luci/view/bdix/status.htm"
+  "https://raw.githubusercontent.com/mrhbijoy/BDIX-OpenWRT-main/main/luci-app-bdix/data/usr/lib/lua/luci/view/bdix/status.htm"
 
 # Download init script
 wget -O /etc/init.d/bdix \
-  "https://raw.githubusercontent.com/emonbhuiyan/BDIX-OpenWRT/main/luci-app-bdix/data/etc/init.d/bdix"
+  "https://raw.githubusercontent.com/mrhbijoy/BDIX-OpenWRT-main/main/luci-app-bdix/data/etc/init.d/bdix"
 
 # Download config
 wget -O /etc/config/bdix \
-  "https://raw.githubusercontent.com/emonbhuiyan/BDIX-OpenWRT/main/luci-app-bdix/data/etc/config/bdix"
+  "https://raw.githubusercontent.com/mrhbijoy/BDIX-OpenWRT-main/main/luci-app-bdix/data/etc/config/bdix"
 
 echo "🔧 Setting permissions..."
 chmod +x /etc/init.d/bdix

@@ -25,7 +25,7 @@ For a step-by-step video guide, watch this tutorial:
 ### Option 1: IPK Package Installation (Easiest - Web Upload)
 
 **📦 Install via OpenWRT Web Interface:**
-1. Download the IPK package: `luci-app-bdix_1.0.0-2_all.ipk`
+1. Download the IPK package: [luci-app-bdix_1.0.0-3_all.ipk](https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/luci-app-bdix/luci-app-bdix_1.0.0-3_all.ipk)
 2. Go to your router: **System** → **Software**
 3. Click **"Upload Package..."** and select the IPK file
 4. After installation: **Services** → **BDIX Proxy**
@@ -38,7 +38,7 @@ For a step-by-step video guide, watch this tutorial:
 For automatic setup with web interface:
 
 ```
-cd /tmp && wget https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/install-web.sh && chmod +x install-web.sh && sh install-web.sh && rm install-web.sh
+cd /tmp && wget https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/install-web.sh && chmod +x install-web.sh && sh install-web.sh && rm install-web.sh
 ```
 
 After installation, access the web interface:
@@ -51,7 +51,7 @@ After installation, access the web interface:
 Run the following command to install the BDIX proxy extension automatically:
 
 ```
-cd /tmp && wget https://github.com/emonbhuiyan/BDIX-OpenWRT/raw/main/install.sh && chmod +x install.sh && clear && sh install.sh && rm install.sh
+cd /tmp && wget https://github.com/mrhbijoy/BDIX-OpenWRT-main/raw/main/install.sh && chmod +x install.sh && clear && sh install.sh && rm install.sh
 ```
 
 Just run it and wait for the process to complete. Enjoy!
