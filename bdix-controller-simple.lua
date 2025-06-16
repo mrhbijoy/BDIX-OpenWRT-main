@@ -11,13 +11,14 @@ function index()
 	-- Register ONLY under System menu (remove Services registration)
 	local page = entry({"admin", "system", "bdix"}, call("action_index"), _("BDIX Proxy"), 70)
 	page.dependent = true
-
 	-- Action handlers (all under system path)
 	entry({"admin", "system", "bdix", "status"}, call("action_status"))
 	entry({"admin", "system", "bdix", "start"}, call("action_start"))
 	entry({"admin", "system", "bdix", "stop"}, call("action_stop"))
 	entry({"admin", "system", "bdix", "restart"}, call("action_restart"))
 	entry({"admin", "system", "bdix", "save"}, call("action_save"))
+	entry({"admin", "system", "bdix", "iptables_start"}, call("action_iptables_start"))
+	entry({"admin", "system", "bdix", "iptables_stop"}, call("action_iptables_stop"))
 end
 
 function action_index()
@@ -30,9 +31,18 @@ function action_index()
 	local proxy_server = uci:get("bdix", "config", "proxy_server") or ""
 	local proxy_port = uci:get("bdix", "config", "proxy_port") or "1080"
 	local local_port = uci:get("bdix", "config", "local_port") or "1337"
-	
-	-- Check service status
+		-- Check service status
 	local running = (sys.call("pgrep redsocks > /dev/null") == 0)
+	
+	-- Check iptables rules
+	local iptables_active = (sys.call("iptables -t nat -L | grep -q '1337'") == 0)
+	local iptables_rules = {}
+	if iptables_active then
+		local rules_output = sys.exec("iptables -t nat -L PREROUTING -n --line-numbers | grep 1337")
+		for line in rules_output:gmatch("[^\r\n]+") do
+			table.insert(iptables_rules, line)
+		end
+	end
 	
 	-- Generate HTML page
 	luci.http.prepare_content("text/html")
@@ -56,10 +66,13 @@ function action_index()
 		.button:hover { background: #0052a3; }
 		.button.danger { background: #dc3545; }
 		.button.danger:hover { background: #c82333; }
-		.button.success { background: #28a745; }
-		.button.success:hover { background: #218838; }
+		.button.success { background: #28a745; }		.button.success:hover { background: #218838; }
 		.section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
 		.help { font-size: 0.9em; color: #666; margin-top: 5px; }
+		.iptables-rules { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-top: 10px; }
+		.iptables-rules pre { margin: 0; white-space: pre-wrap; }
+		.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
+		@media (max-width: 768px) { .status-grid { grid-template-columns: 1fr; } }
 	</style>
 </head>
 <body>
@@ -67,15 +80,42 @@ function action_index()
 			<h1>BDIX Proxy Configuration</h1>
 		</div>
 		
-		<div class="status ]] .. (running and "running" or "stopped") .. [[">
-			<strong>Status:</strong> ]] .. (running and "Running" or "Stopped") .. [[
+		<div class="status-grid">
+			<div class="status ]] .. (running and "running" or "stopped") .. [[">
+				<strong>Service Status:</strong> ]] .. (running and "Running" or "Stopped") .. [[
+			</div>
+			<div class="status ]] .. (iptables_active and "running" or "stopped") .. [[">
+				<strong>Traffic Redirection:</strong> ]] .. (iptables_active and "Active" or "Inactive") .. [[
+			</div>
 		</div>
-				<div class="section">
+		<div class="section">
 			<h3>Service Control</h3>
 			<button class="button success" onclick="location.href='/cgi-bin/luci/admin/system/bdix/start'">Start</button>
 			<button class="button danger" onclick="location.href='/cgi-bin/luci/admin/system/bdix/stop'">Stop</button>
 			<button class="button" onclick="location.href='/cgi-bin/luci/admin/system/bdix/restart'">Restart</button>
 			<button class="button" onclick="location.reload()">Refresh Status</button>
+		</div>
+		
+		<div class="section">
+			<h3>Traffic Redirection Status</h3>
+			<p><strong>IPTables Rules Status:</strong> ]] .. (iptables_active and "Active - Traffic is being redirected" or "Inactive - No traffic redirection") .. [[</p>
+			]] .. (iptables_active and [[
+			<div class="iptables-rules">
+				<strong>Active IPTables Rules:</strong>
+				<pre>]] .. table.concat(iptables_rules, "\n") .. [[</pre>
+			</div>
+			]] or [[
+			<p style="color: #666;">No iptables rules found. Traffic redirection is not active.</p>
+			]]) .. [[			<div class="help">
+				<strong>What this means:</strong><br>
+				• <strong>Service Running + Traffic Active:</strong> BDIX proxy is working<br>
+				• <strong>Service Running + Traffic Inactive:</strong> Service started but traffic rules not applied<br>
+				• <strong>Service Stopped:</strong> BDIX proxy is not running
+			</div>
+			<div style="margin-top: 10px;">
+				<button class="button success" onclick="location.href='/cgi-bin/luci/admin/system/bdix/iptables_start'">Enable Traffic Redirection</button>
+				<button class="button danger" onclick="location.href='/cgi-bin/luci/admin/system/bdix/iptables_stop'">Disable Traffic Redirection</button>
+			</div>
 		</div>
 		
 		<div class="section">
@@ -189,5 +229,33 @@ end
 function action_restart()
 	local sys = require "luci.sys"
 	sys.call("/etc/init.d/bdix restart")
+	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_iptables_start()
+	local sys = require "luci.sys"
+	local uci = require "luci.model.uci".cursor()
+	
+	-- Get configuration
+	local local_port = uci:get("bdix", "config", "local_port") or "1337"
+	
+	-- Add iptables rules for traffic redirection
+	sys.call("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port " .. local_port)
+	sys.call("iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port " .. local_port)
+	
+	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_iptables_stop()
+	local sys = require "luci.sys"
+	local uci = require "luci.model.uci".cursor()
+	
+	-- Get configuration
+	local local_port = uci:get("bdix", "config", "local_port") or "1337"
+	
+	-- Remove iptables rules
+	sys.call("iptables -t nat -D PREROUTING -p tcp --dport 80 -j REDIRECT --to-port " .. local_port .. " 2>/dev/null")
+	sys.call("iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port " .. local_port .. " 2>/dev/null")
+	
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
