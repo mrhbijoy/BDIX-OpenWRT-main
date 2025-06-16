@@ -10,8 +10,7 @@ function index()
 
 	-- Register ONLY under System menu (remove Services registration)
 	local page = entry({"admin", "system", "bdix"}, call("action_index"), _("BDIX Proxy"), 70)
-	page.dependent = true
-	-- Action handlers (all under system path)
+	page.dependent = true	-- Action handlers (all under system path)
 	entry({"admin", "system", "bdix", "status"}, call("action_status"))
 	entry({"admin", "system", "bdix", "start"}, call("action_start"))
 	entry({"admin", "system", "bdix", "stop"}, call("action_stop"))
@@ -19,18 +18,41 @@ function index()
 	entry({"admin", "system", "bdix", "save"}, call("action_save"))
 	entry({"admin", "system", "bdix", "iptables_start"}, call("action_iptables_start"))
 	entry({"admin", "system", "bdix", "iptables_stop"}, call("action_iptables_stop"))
+	entry({"admin", "system", "bdix", "add_ip"}, call("action_add_ip"))
+	entry({"admin", "system", "bdix", "remove_ip"}, call("action_remove_ip"))
+	entry({"admin", "system", "bdix", "add_domain"}, call("action_add_domain"))
+	entry({"admin", "system", "bdix", "remove_domain"}, call("action_remove_domain"))
 end
 
 function action_index()
 	local uci = require "luci.model.uci".cursor()
 	local sys = require "luci.sys"
 	local fs = require "nixio.fs"
-	
-	-- Load current configuration
+		-- Load current configuration
 	local enabled = uci:get("bdix", "config", "enabled") or "0"
 	local proxy_server = uci:get("bdix", "config", "proxy_server") or ""
 	local proxy_port = uci:get("bdix", "config", "proxy_port") or "1080"
 	local local_port = uci:get("bdix", "config", "local_port") or "1337"
+	
+	-- Load custom exclusions
+	local custom_ips = uci:get("bdix", "config", "custom_ips") or ""
+	local custom_domains = uci:get("bdix", "config", "custom_domains") or ""
+	
+	-- Convert to tables for display
+	local ip_list = {}
+	local domain_list = {}
+	
+	if custom_ips ~= "" then
+		for ip in string.gmatch(custom_ips, "([^,]+)") do
+			table.insert(ip_list, string.gsub(ip, "^%s*(.-)%s*$", "%1"))
+		end
+	end
+	
+	if custom_domains ~= "" then
+		for domain in string.gmatch(custom_domains, "([^,]+)") do
+			table.insert(domain_list, string.gsub(domain, "^%s*(.-)%s*$", "%1"))
+		end
+	end
 		-- Check service status
 	local running = (sys.call("pgrep redsocks > /dev/null") == 0)
 	
@@ -69,10 +91,16 @@ function action_index()
 		.button.success { background: #28a745; }		.button.success:hover { background: #218838; }
 		.section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
 		.help { font-size: 0.9em; color: #666; margin-top: 5px; }
-		.iptables-rules { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-top: 10px; }
-		.iptables-rules pre { margin: 0; white-space: pre-wrap; }
+		.iptables-rules { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin-top: 10px; }		.iptables-rules pre { margin: 0; white-space: pre-wrap; }
 		.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
 		@media (max-width: 768px) { .status-grid { grid-template-columns: 1fr; } }
+		.exclusion-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 5px 0; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; }
+		.exclusion-item .remove-btn { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8em; }
+		.exclusion-item .remove-btn:hover { background: #c82333; }
+		.add-exclusion { display: flex; gap: 10px; margin-top: 10px; }
+		.add-exclusion input { flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 3px; }
+		.add-exclusion button { padding: 6px 12px; border: none; background: #28a745; color: white; border-radius: 3px; cursor: pointer; }
+		.add-exclusion button:hover { background: #218838; }
 	</style>
 </head>
 <body>
@@ -149,13 +177,12 @@ function action_index()
 				
 				<button type="submit" class="button">Save Configuration</button>			</form>
 		</div>
-		
-		<div class="section">
+				<div class="section">
 			<h3>IP/Domain Exclusions</h3>
 			<p>These IPs and domains will <strong>NOT</strong> go through the BDIX proxy (direct connection):</p>
 			
 			<div class="iptables-rules">
-				<strong>Built-in Safety Exclusions:</strong>
+				<strong>Built-in Safety Exclusions (Cannot be removed):</strong>
 				<pre>192.168.0.0/16 - Local networks (keeps web UI accessible)
 172.16.0.0/12 - Private networks
 10.0.0.0/8 - Private networks
@@ -163,15 +190,81 @@ function action_index()
 169.254.0.0/16 - Link-local addresses</pre>
 			</div>
 			
-			<div class="iptables-rules">
-				<strong>Domain Exclusions (if configured):</strong>
-				<pre>facebook.com, messenger.com</pre>
+			<h4>Custom IP Exclusions:</h4>
+			<div id="custom-ips">
+				]] .. (function()
+					local html = ""
+					for i, ip in ipairs(ip_list) do
+						html = html .. '<div class="exclusion-item"><span>' .. ip .. '</span><button class="remove-btn" onclick="removeIP(\'' .. ip .. '\')">Remove</button></div>'
+					end
+					if #ip_list == 0 then
+						html = '<p style="color: #666; font-style: italic;">No custom IP exclusions added</p>'
+					end
+					return html
+				end)() .. [[
+			</div>
+			<div class="add-exclusion">
+				<input type="text" id="new-ip" placeholder="Enter IP or IP range (e.g., 203.76.120.0/24)" />
+				<button onclick="addIP()">Add IP</button>
+			</div>
+			
+			<h4>Custom Domain Exclusions:</h4>
+			<div id="custom-domains">
+				]] .. (function()
+					local html = ""
+					for i, domain in ipairs(domain_list) do
+						html = html .. '<div class="exclusion-item"><span>' .. domain .. '</span><button class="remove-btn" onclick="removeDomain(\'' .. domain .. '\')">Remove</button></div>'
+					end
+					if #domain_list == 0 then
+						html = '<p style="color: #666; font-style: italic;">No custom domain exclusions added</p>'
+					end
+					return html
+				end)() .. [[
+			</div>
+			<div class="add-exclusion">
+				<input type="text" id="new-domain" placeholder="Enter domain (e.g., facebook.com)" />
+				<button onclick="addDomain()">Add Domain</button>
 			</div>
 			
 			<div class="help">
-				<strong>⚠️ Safety Note:</strong> Local network IPs (192.168.x.x) are automatically excluded to prevent losing access to your router's web interface.
+				<strong>⚠️ Safety Note:</strong> Built-in local network exclusions cannot be removed to prevent losing access to your router.
 			</div>
 		</div>
+		
+		<script>
+		function addIP() {
+			const input = document.getElementById('new-ip');
+			const ip = input.value.trim();
+			if (ip) {
+				window.location.href = '/cgi-bin/luci/admin/system/bdix/add_ip?ip=' + encodeURIComponent(ip);
+			}
+		}
+		
+		function removeIP(ip) {
+			window.location.href = '/cgi-bin/luci/admin/system/bdix/remove_ip?ip=' + encodeURIComponent(ip);
+		}
+		
+		function addDomain() {
+			const input = document.getElementById('new-domain');
+			const domain = input.value.trim();
+			if (domain) {
+				window.location.href = '/cgi-bin/luci/admin/system/bdix/add_domain?domain=' + encodeURIComponent(domain);
+			}
+		}
+		
+		function removeDomain(domain) {
+			window.location.href = '/cgi-bin/luci/admin/system/bdix/remove_domain?domain=' + encodeURIComponent(domain);
+		}
+		
+		// Enter key support
+		document.getElementById('new-ip').addEventListener('keypress', function(e) {
+			if (e.key === 'Enter') addIP();
+		});
+		
+		document.getElementById('new-domain').addEventListener('keypress', function(e) {
+			if (e.key === 'Enter') addDomain();
+		});
+		</script>
 		
 		<div class="section">
 			<h3>Quick Setup Guide</h3>
@@ -260,6 +353,8 @@ function action_iptables_start()
 	
 	-- Get configuration
 	local local_port = uci:get("bdix", "config", "local_port") or "1337"
+	local custom_ips = uci:get("bdix", "config", "custom_ips") or ""
+	local custom_domains = uci:get("bdix", "config", "custom_domains") or ""
 	
 	-- Create BDIX chain with safety rules (based on your init script)
 	sys.call("iptables -t nat -N BDIX 2>/dev/null")
@@ -273,9 +368,32 @@ function action_iptables_start()
 	sys.call("iptables -t nat -A BDIX -d 224.0.0.0/4 -j RETURN")     -- Multicast
 	sys.call("iptables -t nat -A BDIX -d 240.0.0.0/4 -j RETURN")     -- Reserved
 	
-	-- Add domain exclusions (optional - add your preferred sites)
-	sys.call("iptables -t nat -A BDIX -d facebook.com -j RETURN 2>/dev/null")
-	sys.call("iptables -t nat -A BDIX -d messenger.com -j RETURN 2>/dev/null")
+	-- Add custom IP exclusions
+	if custom_ips ~= "" then
+		for ip in string.gmatch(custom_ips, "([^,]+)") do
+			local clean_ip = string.gsub(ip, "^%s*(.-)%s*$", "%1")
+			if clean_ip ~= "" then
+				sys.call("iptables -t nat -A BDIX -d " .. clean_ip .. " -j RETURN")
+			end
+		end
+	end
+	
+	-- Add custom domain exclusions (resolve to IP if possible)
+	if custom_domains ~= "" then
+		for domain in string.gmatch(custom_domains, "([^,]+)") do
+			local clean_domain = string.gsub(domain, "^%s*(.-)%s*$", "%1")
+			if clean_domain ~= "" then
+				-- Try to resolve domain to IP for iptables rule
+				local ip_result = sys.exec("nslookup " .. clean_domain .. " | grep -A1 'Name:' | tail -1 | awk '{print $2}' 2>/dev/null")
+				if ip_result and ip_result ~= "" then
+					local clean_ip = string.gsub(ip_result, "%s+", "")
+					if clean_ip ~= "" then
+						sys.call("iptables -t nat -A BDIX -d " .. clean_ip .. " -j RETURN")
+					end
+				end
+			end
+		end
+	end
 	
 	-- Redirect remaining traffic to proxy
 	sys.call("iptables -t nat -A BDIX -p tcp -j REDIRECT --to-ports " .. local_port)
@@ -304,4 +422,112 @@ function action_iptables_stop()
 	sys.call("/etc/init.d/firewall restart")
 	
 	luci.http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_add_ip()
+	local uci = require "luci.model.uci".cursor()
+	local http = luci.http
+	
+	local new_ip = http.formvalue("ip")
+	if new_ip and new_ip ~= "" then
+		local current_ips = uci:get("bdix", "config", "custom_ips") or ""
+		
+		-- Check if IP already exists
+		local exists = false
+		if current_ips ~= "" then
+			for ip in string.gmatch(current_ips, "([^,]+)") do
+				if string.gsub(ip, "^%s*(.-)%s*$", "%1") == new_ip then
+					exists = true
+					break
+				end
+			end
+		end
+		
+		if not exists then
+			local updated_ips = current_ips == "" and new_ip or current_ips .. "," .. new_ip
+			uci:set("bdix", "config", "custom_ips", updated_ips)
+			uci:commit("bdix")
+		end
+	end
+	
+	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_remove_ip()
+	local uci = require "luci.model.uci".cursor()
+	local http = luci.http
+	
+	local remove_ip = http.formvalue("ip")
+	if remove_ip and remove_ip ~= "" then
+		local current_ips = uci:get("bdix", "config", "custom_ips") or ""
+		local new_ips = {}
+		
+		if current_ips ~= "" then
+			for ip in string.gmatch(current_ips, "([^,]+)") do
+				local clean_ip = string.gsub(ip, "^%s*(.-)%s*$", "%1")
+				if clean_ip ~= remove_ip then
+					table.insert(new_ips, clean_ip)
+				end
+			end
+		end
+		
+		uci:set("bdix", "config", "custom_ips", table.concat(new_ips, ","))
+		uci:commit("bdix")
+	end
+	
+	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_add_domain()
+	local uci = require "luci.model.uci".cursor()
+	local http = luci.http
+	
+	local new_domain = http.formvalue("domain")
+	if new_domain and new_domain ~= "" then
+		local current_domains = uci:get("bdix", "config", "custom_domains") or ""
+		
+		-- Check if domain already exists
+		local exists = false
+		if current_domains ~= "" then
+			for domain in string.gmatch(current_domains, "([^,]+)") do
+				if string.gsub(domain, "^%s*(.-)%s*$", "%1") == new_domain then
+					exists = true
+					break
+				end
+			end
+		end
+		
+		if not exists then
+			local updated_domains = current_domains == "" and new_domain or current_domains .. "," .. new_domain
+			uci:set("bdix", "config", "custom_domains", updated_domains)
+			uci:commit("bdix")
+		end
+	end
+	
+	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
+end
+
+function action_remove_domain()
+	local uci = require "luci.model.uci".cursor()
+	local http = luci.http
+	
+	local remove_domain = http.formvalue("domain")
+	if remove_domain and remove_domain ~= "" then
+		local current_domains = uci:get("bdix", "config", "custom_domains") or ""
+		local new_domains = {}
+		
+		if current_domains ~= "" then
+			for domain in string.gmatch(current_domains, "([^,]+)") do
+				local clean_domain = string.gsub(domain, "^%s*(.-)%s*$", "%1")
+				if clean_domain ~= remove_domain then
+					table.insert(new_domains, clean_domain)
+				end
+			end
+		end
+		
+		uci:set("bdix", "config", "custom_domains", table.concat(new_domains, ","))
+		uci:commit("bdix")
+	end
+	
+	http.redirect(luci.dispatcher.build_url("admin", "system", "bdix"))
 end
